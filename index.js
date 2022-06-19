@@ -37,6 +37,7 @@ async function insertComment(request) {
     return Response('', { status: 400 })
   }
 
+  console.log('body.permalink', body.permalink)
   const key = `${body.permalink.replace('/', '')}-${Date.now()}`
 
   await COMMENTS_KV.put(key, JSON.stringify({
@@ -51,7 +52,7 @@ async function insertComment(request) {
   }))
 
   // Posting the comment to Zapier for moderation.
-  fetch(ZAPIER_URL, {
+  /*fetch(ZAPIER_URL, {
     method: 'POST',
     headers: {
       'Accept': 'application/json',
@@ -64,7 +65,7 @@ async function insertComment(request) {
       permalink: body.permalink,
       content: body.content,
     })
-  })
+  })*/
 
   return new Response(`
 <!doctype html>
@@ -94,9 +95,14 @@ async function insertComment(request) {
 async function listArticleComments(request) {
   const { pathname } = new URL(request.url)
 
+
   let articleURL = pathname.replace('/comments/', '')
+  articleURL = articleURL.replace("/", "")
+
+  console.log('key', articleURL)
 
   if (!articleURL) {
+    console.log("return Response 400");
     return new Response("", { status: 400 })
   }
 
@@ -109,11 +115,13 @@ async function listArticleComments(request) {
   for (i = 0; i < 5; i++) {
     const values = await COMMENTS_KV.list({ prefix: articleURL, limit: 1000, cursor: cursor})
 
+    console.log('values',values)
+
     for (const key of values.keys) {
-      console.log("Found comment: " + key.name)
+      // console.log("Found comment: " + key.name)
       const jsonComment = await COMMENTS_KV.get(key.name)
-      comment = JSON.parse(jsonComment)
-      console.log(comment)
+      const comment = JSON.parse(jsonComment)
+      // console.log(comment)
       content += `
         <div class="item">
           <h4><span class="grey">${j}.</span> ${sanitizeHTML(comment.name)} <span class="grey small">${new Date(comment.time).toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' })}</span></h4>
@@ -145,6 +153,10 @@ async function listArticleComments(request) {
 }
 
 function sanitizeHTML(string) {
+  if (typeof string === "undefined" || typeof string === undefined) {
+    return ""
+  }
+
   const map = {
       '&': '&amp;',
       '<': '&lt;',
